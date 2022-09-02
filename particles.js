@@ -87,8 +87,8 @@ const interact = () => {
     let fx = 0
     let fy = 0
     const p1 = particles[ix1]
-    for (let ix2 = 0; ix2 < particles.length; ix2++) {
-      if (ix2 === ix1) { continue } // particle doesnot interact with itself
+    for (let ix2 = ix1 + 1; ix2 < particles.length; ix2++) {
+      // if (ix2 === ix1) { continue } // particle doesnot interact with itself
       const p2 = particles[ix2]
       const dx = p1.x - p2.x
       const dy = p1.y - p2.y
@@ -114,9 +114,11 @@ const interact = () => {
             fy += F * dy
         }
       }
+      p1.vx = (p1.vx + fx) * 0.5
+      p1.vy = (p1.vy + fy) * 0.5
+      p2.vx = (p2.vx - fx) * 0.5
+      p2.vy = (p2.vy - fy) * 0.5
     }
-    p1.vx = (p1.vx + fx) * 0.5
-    p1.vy = (p1.vy + fy) * 0.5
 
   }
 }
