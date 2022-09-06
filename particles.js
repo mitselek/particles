@@ -4,7 +4,7 @@ const G = 0.6
 const G_FACTOR = 2
 const E = -0.0001
 const E_FACTOR = 0.9
-const C = 5 // speed limit
+const C = 1 // speed limit
 const SPEED_LIMIT = C
 
 const randomMass = () => {
@@ -78,51 +78,51 @@ const randomMass = () => {
 
 const RULES = {
   red: {
-    count: 150,
+    count: 50,
     mass: Math.random() * 12,
     size: 5,
     charge: 1,
     interact: {
-      red: {factor: 3, force: -200},
-      blue: {factor: 2, force: 1},
-      green: {factor: 3, force: -.001},
-      yellow: {factor: 1.3, force: Math.random() * 2 - 1},
+      red:   {factor: 2, force: 2},
+      blue:  {factor: 1, force: 1},
+      green: {factor: 1, force: -1},
+      yellow: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
     }
   },
   blue: {
-    count: 150,
+    count: 50,
     mass: Math.random() * 12,
     size: 5,
     charge: 1,
     interact: {
-      blue: {factor: 3, force: -200},
-      red: {factor: 2, force: 1},
-      green: {factor: 3, force: .001},
-      yellow: {factor: 1.3, force: Math.random() * 2 - 1},
+      blue:  {factor: 2, force: 2},
+      green: {factor: 1, force: 1},
+      red:   {factor: 1, force: -1},
+      yellow: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
     }
   },
   green: {
-    count: 150,
+    count: 50,
     mass: Math.random() * 12,
     size: 5,
     charge: 1,
     interact: {
-      red: {factor: 3, force: .001},
-      green: {factor: 2, force: 1},
-      blue: {factor: 3, force: -.001},
-      yellow: {factor: 1.3, force: Math.random() * 2 - 1},
+      green: {factor: 2, force: 2},
+      red:   {factor: 1, force: 1},
+      blue:  {factor: 1, force: -1},
+      yellow: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
     }
   },
   yellow: {
-    count: 0,
+    count: 1,
     mass: Math.random() * 12,
     size: 5,
     charge: 1,
     interact: {
-      red: {factor: 1.3, force: Math.random() * 2 - 1},
-      green: {factor: 1.3, force: Math.random() * 2 - 1},
-      blue: {factor: 1.3, force: Math.random() * 2 - 1},
-      yellow: {factor: 1.3, force: Math.random() * 2 - 1},
+      yellow: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
+      green: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
+      red: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
+      blue: {factor: Math.random() + 0.5, force: Math.random() * 2 - 1},
     }
   },
 }
@@ -148,7 +148,7 @@ for (const [color, rules] of Object.entries(RULES)) {
   for (let i = 0; i < rules.count; i++) {
     particles.push({ x: randomX(), y: randomY(), vx: 0, vy: 0, 
                      color: color, mass: rules.mass, size: rules.size, 
-                     speed_c: 0, direction: 0 })
+                     speed: 0, direction: 0 })
   }
 }
 
@@ -160,11 +160,23 @@ const draw_vector = (x, y, c, vx, vy) => {
   context.stroke(); 
 }
 
-function accelerate(p, attr_x, attr_y) {
-  y = 1 - Math.exp(-x) // map 0..infinity to 0..1
-  p.vx += attr_x / p.mass
-  p.vy += attr_y / p.mass
-  p.speed_c = Math.sqrt(p.vx**2 + p.vy**2) / C
+const MK = 10000
+const map1 = (x) => (1 - Math.exp(-x / MK))
+
+// There are no massless particles yet
+accelerate =  (p, force_x, force_y) => {
+  const force = Math.sqrt(force_x ** 2 + force_y ** 2)
+  const force_c = map1(force / p.mass) * (C - p.speed)
+  const normalizer = force / force_c //  always > 1
+  const force_x_c = force_x / normalizer 
+  const force_y_c = force_y / normalizer
+  p.vx += force_x_c
+  p.vy += force_y_c
+  p.speed = Math.sqrt(p.vx**2 + p.vy**2) // always < C
+  // if (Math.random() > 0.99999999) {
+  //   console.log({force_x, force_y, p})
+  // }
+
 }
 
 // Apply rules
@@ -179,6 +191,9 @@ const interact = () => {
     const force2 = rule2.force / (distance ** rule2.factor)
     attr2_x = force2 * dx
     attr2_y = force2 * dy
+    // if (dx > 0) {
+    //   console.log({dx, dy, distance, force1, force2, p1, p2});
+    // }
     accelerate(p1, -attr2_x, -attr2_y)
     accelerate(p2,  attr1_x,  attr1_y)
   }
@@ -195,15 +210,17 @@ const interact = () => {
 
   for (let ix1 = 0; ix1 < particles.length; ix1++) {
     const p1 = particles[ix1]
-    // const e1 = p1.mass / (1 - speed1 / SPEED_LIMIT)
     for (let ix2 = ix1+1; ix2 < particles.length; ix2++) {
-      if (ix2 === ix1) { continue } // particle doesnot interact with itself
+      // if (ix2 === ix1) { continue } // particle doesnot interact with itself
       const p2 = particles[ix2]
       const dx = p1.x - p2.x
       const dy = p1.y - p2.y
       const distance = Math.sqrt(dx**2 + dy**2)
       if (distance === 0) { continue } // no interaction without distance
-
+      // if (Math.random() > 0.99999999) {
+      //   console.log({p1, p2})
+      // }
+    
       
       // const speed2 = Math.sqrt(p2.vx ** 2 + p2.vy ** 2)
       // const e2 = p2.mass / (1 - speed2 / SPEED_LIMIT)
@@ -211,9 +228,12 @@ const interact = () => {
       const force = RULES[p1.color]['interact'][p2.color]['force']
       const factor = RULES[p1.color]['interact'][p2.color]['factor']
       if (p1.mass > 0 && p2.mass > 0) { // interactions involving inertia
-        apply_universals(distance, p1, p2, dx, dy)
+        // apply_universals(distance, p1, p2, dx, dy)
       }
-      apply_rules(p1, p2, dx, dy, distance)
+      // if (Math.random() > 0.999999) {
+      //   console.log({dx, dy, p1, p2, distance})
+      // }
+        apply_rules(p1, p2, dx, dy, distance)
     }
   }
 
@@ -283,7 +303,7 @@ function update() {
   for (i = 0; i < particles.length; i += 1) {
     const p = particles[i]
     draw(p.x, p.y, p.color, p.size)
-    // draw_vector(p.x, p.y, p.color, p.vx*10, p.vy*10)
+    draw_vector(p.x, p.y, 'white', p.vx*100, p.vy*100)
   }
   requestAnimationFrame(update)
 }
