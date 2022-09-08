@@ -1,7 +1,7 @@
 const C = 299792458 // speed limit in m/s
 const P2M = 0.1 // how many meters per point
-const P_SIZE = 2
-const NUM_ANTENNAS = 5
+const P_SIZE = 1
+const NUM_ANTENNAS = 15
 const FREQUENCY = 142800000
 const WAVELENGTH = C / FREQUENCY
 
