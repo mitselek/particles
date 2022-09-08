@@ -31,7 +31,7 @@ const randomY = () => Math.random() * canvas.height + .5
 
 // frequency in Hz
 // 
-const antenna = (frequency, x, y, shift = 0, amplitude = 10000, color = 'white') => {
+const antenna = (frequency, x, y, shift = 0, amplitude = 100, color = 'yellow') => {
   return {
     x: x,
     y: y,
@@ -47,9 +47,9 @@ const antenna = (frequency, x, y, shift = 0, amplitude = 10000, color = 'white')
 // Create antennas
 const antennas = []
 
-antennas.push(antenna(142500000, 100, 200))
-antennas.push(antenna(142500000, 120, 200))
-antennas.push(antenna(142500000, 140, 200))
+antennas.push(antenna(142500000, -50, 200, 0, 255, {R:255,G:0,B:0}))
+antennas.push(antenna(142500000, -52, 207, 0, 255, {R:0,G:255,B:0}))
+antennas.push(antenna(142500000, -54, 214, 0, 255, {R:0,G:0,B:255}))
 
 
 console.log(antennas)
@@ -113,7 +113,7 @@ function update() {
   prev_ms = now_ms
 
   const draw = (x, y, intensity) => {
-    context.fillStyle = "rgba("+255*intensity+","+255*intensity+","+255*intensity+","+1+")"
+    context.fillStyle = "rgba("+255*Math.abs(intensity.R)+","+255*Math.abs(intensity.G)+","+255*Math.abs(intensity.B)+","+1+")"
     // console.log(intensity)
     context.fillRect( x, y, 1, 1 )
   }
@@ -122,19 +122,20 @@ function update() {
   // draw(0, 0, "black", canvas.width/3, canvas.height/2)
   for (let cx = 0; cx < canvas.width; cx += 1) {
     for (let cy = 0; cy < canvas.height; cy += 1) {
-      let field = 0
+      let field = {R:0, G:0, B:0}
       for (let a = 0; a < antennas.length; a++) {
         const antenna = antennas[a]
         const distance_pt = Math.sqrt((antenna.x-cx)**2 + (antenna.y-cy)**2)
         // const distance_m = distance_pt * P2M
-        const intensity = Math.sin(distance_pt / antenna.wavelength_pt * 2 * Math.PI) + antenna.shift
-        const dropoff = distance_pt**2
-        field += antenna.amplitude * intensity / dropoff
+        const intensity = antenna.amplitude * Math.sin(distance_pt / antenna.wavelength_pt * 2 * Math.PI + antenna.shift) / distance_pt**2
+        field.R += intensity * antenna.color.R
+        field.G += intensity * antenna.color.G
+        field.B += intensity * antenna.color.B
       }
-      field = field / antennas.length
-      draw(cx, cy, Math.abs(field))
+      draw(cx, cy, field)
     }
   }
-  antennas
+  antennas[0].shift += 0.1
+  antennas[1].shift += 0.15
   requestAnimationFrame(update)
 }
