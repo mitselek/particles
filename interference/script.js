@@ -1,18 +1,15 @@
-const MASSLESS_FRACTION = 1/3 
-const MAX_MASS = 5
-const G = 0.6
-const G_FACTOR = 2
-const E = -0.0001
-const E_FACTOR = 0.9
 const C = 299792458 // speed limit in m/s
-const SPEED_LIMIT = C
 const P2M = 0.1 // how many meters per point
+const P_SIZE = 2
+const NUM_ANTENNAS = 5
+const FREQUENCY = 142800000
+const WAVELENGTH = C / FREQUENCY
 
-const randomMass = () => {
-  const relative_mass = Math.max(Math.random(), MASSLESS_FRACTION) - MASSLESS_FRACTION
-  return relative_mass / (1 - MASSLESS_FRACTION) * MAX_MASS
+
+let sinArray = new Array(360)
+for (var i = 0; i < 360; i++) {
+  sinArray[i] = Math.sin(i * Math.PI / 180)
 }
-
 
 
 // Canvas
@@ -28,13 +25,18 @@ const context = canvas.getContext("2d")
 const randomX = () => Math.random() * canvas.width + .5
 const randomY = () => Math.random() * canvas.height + .5
 
+const TARGET = {x:800, y:400}
+const antenna_array = {
+  x: 300,
+  y: 300,
+  r: WAVELENGTH * 50,
+  antennas: []
+}
 
 // frequency in Hz
 // 
 const antenna = (frequency, x, y, shift = 0, amplitude = 100, color = 'yellow') => {
-  return {
-    x: x,
-    y: y,
+  return { x: x, y: y,
     amplitude: amplitude,
     frequency: frequency,
     wavelength_m: C / frequency,
@@ -44,15 +46,26 @@ const antenna = (frequency, x, y, shift = 0, amplitude = 100, color = 'yellow') 
   }
 }
 
+for (let i = 0; i < NUM_ANTENNAS; i++) {
+  const x = antenna_array.x + Math.sin(2 * Math.PI / NUM_ANTENNAS * i) * antenna_array.r
+  const y = antenna_array.y + Math.cos(2 * Math.PI / NUM_ANTENNAS * i) * antenna_array.r
+  antenna_array.antennas.push(
+    antenna( FREQUENCY, 
+             x, 
+             y, 
+             shift = (Math.hypot(TARGET.x-x, TARGET.y-y) % WAVELENGTH) / WAVELENGTH, 
+             amplitude = 255,
+             { R:Math.random()*255,
+               G:Math.random()*255,
+               B:Math.random()*255 } ) )
+}
+
+
 // Create antennas
-const antennas = []
-
-antennas.push(antenna(142500000, -50, 200, 0, 255, {R:255,G:0,B:0}))
-antennas.push(antenna(142500000, -52, 207, 0, 255, {R:0,G:255,B:0}))
-antennas.push(antenna(142500000, -54, 214, 0, 255, {R:0,G:0,B:255}))
+const fq = 142800000
 
 
-console.log(antennas)
+console.log(antenna_array)
 
 // const draw_vector = (x, y, c, vx, vy) => {
 //   context.strokeStyle = c
@@ -74,68 +87,66 @@ const movaverage = (key, value) => {
   return this[key]
 }
 
-// const moveParticles = () => {
-//   for (let i = 0; i < particles.length; i++) {
-//     const a = particles[i]
-//     a.x += a.vx
-//     a.y += a.vy
-    
-//     if (a.x <= 0) {
-//       a.vx *= -1
-//       a.x = -a.x
-//     }
-//     if (a.x >= canvas.width) {
-//       a.vx *= -1
-//       a.x = 2 * canvas.width - a.x
-//     }
-
-//     if (a.y <= 0) {
-//       a.vy *= -1
-//       a.y = -a.y
-//     }
-//     if (a.y >= canvas.height) {
-//       a.vy *= -1
-//       a.y = 2 * canvas.height - a.y
-//     }
-//   }
-// }
-
 // Update Frames
 let prev_ms = new Date().valueOf() - 1000/60
-update()
+update(0)
 
-function update() {
+function update(skip) {
+
+  const draw_target = () => {
+    context.strokeStyle = "white"
+    // context.fillRect(x, y, sx, sy)
+    context.beginPath()
+    context.arc(TARGET.x, TARGET.y, 10, 0, 2 * Math.PI, false)
+    context.stroke()
+  }
+
+  const draw = (x, y, intensity) => {
+    // context.fillStyle = "hsl(120, 100%, " + intensity + "%)"
+    // console.log('fs', context.fillStyle)
+    context.fillStyle = "rgb("+255*Math.abs(intensity.R)+","+255*Math.abs(intensity.G)+","+255*Math.abs(intensity.B)+")"
+    context.fillRect( x, y, P_SIZE, P_SIZE )
+  }
   // Update Canvas Dimensions - if screen size changed
   updateCanvasDimensions()
   const now_ms = new Date().valueOf()
-  const fps = 1000 / (now_ms - prev_ms)
+  // const fps = 1000 / (now_ms - prev_ms)
   document.getElementById('FPS').innerText = Math.round(movaverage('fps', 1000 / (now_ms - prev_ms)))
   prev_ms = now_ms
 
-  const draw = (x, y, intensity) => {
-    context.fillStyle = "rgba("+255*Math.abs(intensity.R)+","+255*Math.abs(intensity.G)+","+255*Math.abs(intensity.B)+","+1+")"
-    // console.log(intensity)
-    context.fillRect( x, y, 1, 1 )
-  }
-      
   // m.clearRect(0, 0, canvas.width, canvas.height)
   // draw(0, 0, "black", canvas.width/3, canvas.height/2)
-  for (let cx = 0; cx < canvas.width; cx += 1) {
-    for (let cy = 0; cy < canvas.height; cy += 1) {
+  for (let cx = 0; cx < canvas.width; cx += P_SIZE) {
+    for (let cy = 0; cy < canvas.height; cy += P_SIZE) {
+      // let field = 0
       let field = {R:0, G:0, B:0}
-      for (let a = 0; a < antennas.length; a++) {
-        const antenna = antennas[a]
-        const distance_pt = Math.sqrt((antenna.x-cx)**2 + (antenna.y-cy)**2)
+      if (skip === 1) {
+        // draw(cx, cy, field)
+        // continue
+      }
+      for (let a = 0; a < antenna_array.antennas.length; a++) {
+        const antenna = antenna_array.antennas[a]
+        const distance_pt = Math.hypot(antenna.x-cx, antenna.y-cy)
+        // const distance_pt = Math.sqrt((antenna.x-cx)**2 + (antenna.y-cy)**2)
+        // const distance_pt = Math.abs(antenna.x-cx) + Math.abs(antenna.y-cy)
         // const distance_m = distance_pt * P2M
-        const intensity = antenna.amplitude * Math.sin(distance_pt / antenna.wavelength_pt * 2 * Math.PI + antenna.shift) / distance_pt**2
+        const phase_reminder_pt = (distance_pt + antenna.shift*antenna.wavelength_pt) % antenna.wavelength_pt
+        // const sin_t = sinArray[Math.round(phase_reminder_pt / antenna.wavelength_pt * 360)]
+        const sin_t = Math.sin(phase_reminder_pt / antenna.wavelength_pt * 2 * Math.PI)
+        const intensity = antenna.amplitude * sin_t / distance_pt**2
         field.R += intensity * antenna.color.R
         field.G += intensity * antenna.color.G
         field.B += intensity * antenna.color.B
+        // field += intensity
       }
+      // const intensity = Math.round(Math.abs(field * 100))
+      // console.log(field)
       draw(cx, cy, field)
     }
   }
-  antennas[0].shift += 0.1
-  antennas[1].shift += 0.15
-  requestAnimationFrame(update)
+  draw_target()
+  console.log(antenna_array.antennas.map(a => a.shift))
+  antenna_array.antennas[0].shift += Math.random()/20
+  // antennas[1].shift += 0.15
+  requestAnimationFrame(() => update(1))
 }
