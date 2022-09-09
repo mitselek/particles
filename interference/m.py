@@ -1,28 +1,29 @@
-import gtk
+# https://realpython.com/pygame-a-primer/#displays-and-surfaces
 
-class Canvas(gtk.DrawingArea):
-    def __init__(self):
-        super(Canvas, self).__init__()
-        self.connect("expose_event", self.expose)
-        self.set_size_request(800,500)
+import numpy as N
+# Import the pygame module
+import pygame
 
-    def expose(self, widget, event):
-        cr = widget.window.cairo_create()
-        rect = self.get_allocation()
+# Import pygame.locals for easier access to key coordinates
+# Updated to conform to flake8 and black standards
+from pygame.locals import (
+    K_UP,
+    K_DOWN,
+    K_LEFT,
+    K_RIGHT,
+    K_ESCAPE,
+    KEYDOWN,
+    QUIT,
+)
 
-        # you can use w and h to calculate relative positions which
-        # also change dynamically if window gets resized
-        w = rect.width
-        h = rect.height
+# Initialize pygame
+pygame.init()
 
-        # here is the part where you actually draw
-        cr.move_to(0,0)
-        cr.line_to(w/2, h/2)
-        cr.stroke()
+# Define constants for the screen width and height
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
 
-window = gtk.Window()
-canvas = Canvas()
-window.add(canvas)
-window.set_position(gtk.WIN_POS_CENTER)
-window.show_all()
-gtk.main()
+# Create the screen object
+# The size is determined by the constant SCREEN_WIDTH and SCREEN_HEIGHT
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+

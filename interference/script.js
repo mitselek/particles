@@ -1,7 +1,7 @@
 const C = 299792458 // speed limit in m/s
 const P2M = 1 // how many meters per point
-const P_SIZE = 5
-const NUM_ANTENNAS = 3
+const P_SIZE = 0
+const NUM_ANTENNAS = 5
 const FREQUENCY = 142800000
 const WAVELENGTH = C / FREQUENCY
 const WAVELENGTH_PT = WAVELENGTH / P2M
@@ -117,6 +117,7 @@ function update(antenna_to_tune) {
     const target_angle_steps = 10
     const current_tuning = antenna_array.antennas.map(a => a.shift)
     let best_tuning = {phase_conf: antenna_array.antennas.map(a => a.shift), value: sumIntensity(TARGET.r, target_angle_steps)}
+    let found_better = false
     console.log('previous best', JSON.stringify(best_tuning))
     for (let i = 0; i < 1000; i++) {
       for (let aix = 0; aix < antenna_array.antennas.length; aix++) {
@@ -124,13 +125,21 @@ function update(antenna_to_tune) {
       }
       const sum_intensity = sumIntensity(TARGET.r, target_angle_steps)
       if (sum_intensity > best_tuning.value) {
+        found_better = true
         best_tuning = {phase_conf: antenna_array.antennas.map(a => a.shift), value: sum_intensity}
       }
     }
-    for (let i = 0; i < best_tuning.phase_conf.length; i++) {
-      antenna_array.antennas[i].shift = best_tuning.phase_conf[i];
+    if (found_better === true) {
+      for (let i = 0; i < best_tuning.phase_conf.length; i++) {
+        antenna_array.antennas[i].shift = best_tuning.phase_conf[i]
+      }
+      console.log('new best', JSON.stringify(best_tuning))
+    } else {
+      for (let i = 0; i < best_tuning.phase_conf.length; i++) {
+        antenna_array.antennas[i].shift = current_tuning[i]
+      }
+      tune2()
     }
-    console.log('new best', JSON.stringify(best_tuning))
   }
 
   // Update Canvas Dimensions - if screen size changed
@@ -171,7 +180,7 @@ function update(antenna_to_tune) {
     draw(cx, cy, field)
     }
   }
-  draw_target()
+  draw_target(TARGET.x, TARGET.y, TARGET.r, "red")
   for (let a = 0; a < antenna_array.antennas.length; a++) {
     const antenna = antenna_array.antennas[a]
     draw_target(antenna.x, antenna.y, 5, "black")

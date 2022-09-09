@@ -9,7 +9,7 @@ for i in range(100):
     y.append(i)
   
     # Mention x and y limits to define their range
-    plt.xlim(0, 100)
+    plt.xlim(0, 300)
     plt.ylim(0, 100)
       
     # Ploting graph
