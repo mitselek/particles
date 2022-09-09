@@ -1,9 +1,10 @@
 const C = 299792458 // speed limit in m/s
-const P2M = 0.1 // how many meters per point
+const P2M = 0.05 // how many meters per point
 const P_SIZE = 1
-const NUM_ANTENNAS = 15
+const NUM_ANTENNAS = 2
 const FREQUENCY = 142800000
 const WAVELENGTH = C / FREQUENCY
+const WAVELENGTH_PT = WAVELENGTH / P2M
 
 
 let sinArray = new Array(360)
@@ -21,15 +22,12 @@ const updateCanvasDimensions = () => {
 updateCanvasDimensions()
 const context = canvas.getContext("2d")
 
-// Random locations on canvas
-const randomX = () => Math.random() * canvas.width + .5
-const randomY = () => Math.random() * canvas.height + .5
 
 const TARGET = {x:800, y:400}
 const antenna_array = {
   x: 300,
   y: 300,
-  r: WAVELENGTH * 50,
+  r: WAVELENGTH_PT * 0.5,
   antennas: []
 }
 
@@ -53,28 +51,13 @@ for (let i = 0; i < NUM_ANTENNAS; i++) {
     antenna( FREQUENCY, 
              x, 
              y, 
-             shift = (Math.hypot(TARGET.x-x, TARGET.y-y) % WAVELENGTH) / WAVELENGTH, 
+             shift = (Math.hypot(TARGET.x-x, TARGET.y-y) % WAVELENGTH_PT) / WAVELENGTH_PT + 1/4, 
              amplitude = 255,
              { R:Math.random()*255,
                G:Math.random()*255,
                B:Math.random()*255 } ) )
 }
-
-
-// Create antennas
-const fq = 142800000
-
-
 console.log(antenna_array)
-
-// const draw_vector = (x, y, c, vx, vy) => {
-//   context.strokeStyle = c
-//   context.beginPath(); 
-//   context.moveTo(x, y);
-//   context.lineTo(x+vx, y+vy);
-//   context.stroke(); 
-// }
-
 
 const movaverage = (key, value) => {
   const history = 10
@@ -89,9 +72,9 @@ const movaverage = (key, value) => {
 
 // Update Frames
 let prev_ms = new Date().valueOf() - 1000/60
-update(0)
+update(true)
 
-function update(skip) {
+function update(first_frame) {
 
   const draw_target = () => {
     context.strokeStyle = "white"
@@ -107,6 +90,28 @@ function update(skip) {
     context.fillStyle = "rgb("+255*Math.abs(intensity.R)+","+255*Math.abs(intensity.G)+","+255*Math.abs(intensity.B)+")"
     context.fillRect( x, y, P_SIZE, P_SIZE )
   }
+
+  const tune = (the_antenna) => {
+    const distance_steps = 100
+    const phase_steps = 360
+    const best_tuning = {phase: 0, value: 0}
+    for (let p = 0; p < 360; p++) {
+      const phase = 1 / phase_steps * p
+      for (let i = 0; i < distance_steps; i++) {
+        const target = {
+          x: (TARGET.x - antenna_array.x) / distance_steps * i,
+          y: (TARGET.y - antenna_array.y) / distance_steps * i,
+        }
+        for (let aix = 0; aix < antenna_array.antennas.length; aix++) {
+          const antenna = antenna_array.antennas[aix]
+          const distance_pt = Math.hypot(target.x - antenna.x, target.y - antenna.y)
+          const intensity = getIntensity0(distance_pt, antenna)
+          
+        }
+      }
+    }
+  }
+
   // Update Canvas Dimensions - if screen size changed
   updateCanvasDimensions()
   const now_ms = new Date().valueOf()
@@ -120,7 +125,7 @@ function update(skip) {
     for (let cy = 0; cy < canvas.height; cy += P_SIZE) {
       // let field = 0
       let field = {R:0, G:0, B:0}
-      if (skip === 1) {
+      if (first_frame === false) {
         // draw(cx, cy, field)
         // continue
       }
@@ -130,10 +135,7 @@ function update(skip) {
         // const distance_pt = Math.sqrt((antenna.x-cx)**2 + (antenna.y-cy)**2)
         // const distance_pt = Math.abs(antenna.x-cx) + Math.abs(antenna.y-cy)
         // const distance_m = distance_pt * P2M
-        const phase_reminder_pt = (distance_pt + antenna.shift*antenna.wavelength_pt) % antenna.wavelength_pt
-        // const sin_t = sinArray[Math.round(phase_reminder_pt / antenna.wavelength_pt * 360)]
-        const sin_t = Math.sin(phase_reminder_pt / antenna.wavelength_pt * 2 * Math.PI)
-        const intensity = antenna.amplitude * sin_t / distance_pt**2
+        const intensity = getIntensity0(distance_pt, antenna)
         field.R += intensity * antenna.color.R
         field.G += intensity * antenna.color.G
         field.B += intensity * antenna.color.B
@@ -146,7 +148,34 @@ function update(skip) {
   }
   draw_target()
   console.log(antenna_array.antennas.map(a => a.shift))
-  antenna_array.antennas[0].shift += Math.random()/20
+  // antenna_array.antennas[0].shift += Math.random()/2000
   // antennas[1].shift += 0.15
-  requestAnimationFrame(() => update(1))
+  requestAnimationFrame(() => update(false))
 }
+
+function getIntensity(x, y) {
+  const phase_steps = 360
+  const distance_pt = antenna_array.antennas.map(a => Math.hypot(x-a.x, y-a.y))
+  let intensity = 0
+  for (let pix = 0; pix < phase_steps; pix++) {
+    const phase_incr = pix / phase_steps
+    let p_intensity = 0
+    for (let aix = 0; aix < antenna_array.antennas.length; aix++) {
+      const antenna = antenna_array.antennas[aix]
+      const phase_reminder_pt = (distance_pt + (antenna.shift + phase_incr) * antenna.wavelength_pt) % antenna.wavelength_pt
+      const sin_t = Math.sin(phase_reminder_pt / antenna.wavelength_pt * 2 * Math.PI)
+      p_intensity += antenna.amplitude * sin_t / distance_pt[aix] ** 2
+    }
+    intensity += Math.abs(p_intensity)
+  }
+  return intensity / phase_steps
+}
+
+function getIntensity0(distance_pt, antenna) {
+  const phase_reminder_pt = (distance_pt + antenna.shift * antenna.wavelength_pt) % antenna.wavelength_pt
+  // const sin_t = sinArray[Math.round(phase_reminder_pt / antenna.wavelength_pt * 360)]
+  const sin_t = Math.sin(phase_reminder_pt / antenna.wavelength_pt * 2 * Math.PI)
+  const intensity = antenna.amplitude * sin_t / distance_pt ** 2
+  return Math.abs(intensity)
+}
+
