@@ -1,5 +1,4 @@
-// badprog.com
-#include <GL/glut.h>
+#include <c:/msys64/mingw64/include/GL/glut.h>
 
 void displayMe(void)
 {

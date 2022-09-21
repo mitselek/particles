@@ -1,7 +1,7 @@
 const C = 299792458 // speed limit in m/s
 const P2M = 1 // how many meters per point
 const P_SIZE = 0
-const NUM_ANTENNAS = 5
+const NUM_ANTENNAS = 2
 const FREQUENCY = 142800000
 const WAVELENGTH = C / FREQUENCY
 const WAVELENGTH_PT = WAVELENGTH / P2M
@@ -27,7 +27,7 @@ const TARGET = {x:1200, y:100, r:20}
 const antenna_array = {
   x: 400,
   y: 500,
-  r: WAVELENGTH_PT * 0.5,
+  r: WAVELENGTH_PT * 0.25,
   antennas: []
 }
 
