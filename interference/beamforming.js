@@ -88,7 +88,9 @@ update()
 function update() {
 
     const draw = (x, y, color) => {
-        context.fillStyle = "rgb(" + color.R + "," + color.G + "," + color.B + ")"
+        const tone = color.R < 100 ? 'black' : 'white'
+        // context.fillStyle = "rgb(" + color.R + "," + color.G + "," + color.B + ")"
+        context.fillStyle = tone
         // console.log(color, context.fillStyle)
         context.fillRect(x, y, P_SIZE, P_SIZE)
     }
