@@ -1,7 +1,7 @@
 const C = 299792458 // speed limit in m/s
 const P2M = 1 // how many meters per point
 const P_SIZE = 1
-const NUM_ANTENNAS = 12
+const NUM_ANTENNAS = 5
 const FREQUENCY = 142800000
 const BRIGHTNESS = 1e7
 const WAVELENGTH = C / FREQUENCY
@@ -38,8 +38,8 @@ const TARGET = { x: 1200, y: 100, r: 20 }
 const antenna_array = {
     x: 150,
     y: 200,
-    r: WAVELENGTH_PT * 0.5,
-    direction: 0, // in radians [-Pi..Pi]
+    r: WAVELENGTH_PT * 2,
+    direction: 0, //PI/2, // in radians [-Pi..Pi]
     antennas: []
 }
 
@@ -68,22 +68,32 @@ const antenna = (frequency, x, y, amplitude = 100, color = 'yellow') => {
 // antenna_array.antennas.push(antenna(FREQUENCY, antenna_array.x+800, antenna_array.y, 0, BRIGHTNESS * 2 * NUM_ANTENNAS))
 
 for (let i = 0; i < NUM_ANTENNAS; i++) {
-    const x = antenna_array.x
-    const y = antenna_array.y + i * antenna_array.r
-    console.log({x,y})
+    const x = antenna_array.x + Math.sin(2 * Math.PI / NUM_ANTENNAS * i) * antenna_array.r
+    const y = antenna_array.y + Math.cos(2 * Math.PI / NUM_ANTENNAS * i) * antenna_array.r
     antenna_array.antennas.push(
-        antenna(FREQUENCY,
-            x,
-            y,
-            amplitude = BRIGHTNESS
-    ))
-    antenna_array.antennas.push(
-        antenna(FREQUENCY,
-            0.3 * y + 0.7 * x,
-            0.7 * y + 0.3 * x,
-            amplitude = BRIGHTNESS
-    ))
-}
+      antenna( FREQUENCY, 
+               x, 
+               y, 
+               amplitude = BRIGHTNESS ) )
+  }
+
+// for (let i = 0; i < NUM_ANTENNAS; i++) {
+//     const x = antenna_array.x
+//     const y = antenna_array.y + i * antenna_array.r
+//     console.log({x,y})
+//     antenna_array.antennas.push(
+//         antenna(FREQUENCY,
+//             x,
+//             y,
+//             amplitude = BRIGHTNESS
+//     ))
+//     antenna_array.antennas.push(
+//         antenna(FREQUENCY,
+//             0.3 * y + 0.7 * x,
+//             0.7 * y + 0.3 * x,
+//             amplitude = BRIGHTNESS
+//     ))
+// }
 console.log(antenna_array)
 
 
@@ -94,7 +104,12 @@ update()
 function update() {
 
     const draw = (x, y, color) => {
-        const tone = color.R < 100 ? 'black' : 'white'
+        const tone = 
+            color.R < 100 ? 
+                'black' : 
+                color.R < 200 ?
+                    'white' :
+                    'yellow'
         // context.fillStyle = "rgb(" + color.R + "," + color.G + "," + color.B + ")"
         context.fillStyle = tone
         // console.log(color, context.fillStyle)
