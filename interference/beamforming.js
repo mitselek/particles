@@ -1,20 +1,17 @@
 const C = 299792458 // speed limit in m/s
 const P2M = 1 // how many meters per point
 const P_SIZE = 1
-const NUM_ANTENNAS = 5
+const NUM_ANTENNAS = 12
 const FREQUENCY = 142800000
-const BRIGHTNESS = 1e8
+const BRIGHTNESS = 1e7
 const WAVELENGTH = C / FREQUENCY
 const WAVELENGTH_PT = WAVELENGTH / P2M
 const PI = Math.PI
 
+
 const TESTS_PER_WAVE = 10
 const TEST_RADIANS = new Array(TESTS_PER_WAVE).fill(0).map((v, ix) => ix / TESTS_PER_WAVE * 2 * Math.PI)
 
-let sinArray = new Array(360)
-for (var i = 0; i < 360; i++) {
-    sinArray[i] = Math.sin(i * Math.PI / 180)
-}
 const movaverage = (key, value) => {
     const history = 10
     if (this[key] === undefined) {
@@ -40,20 +37,30 @@ const TARGET = { x: 1200, y: 100, r: 20 }
 
 const antenna_array = {
     x: 150,
-    y: 150,
+    y: 200,
     r: WAVELENGTH_PT * 0.5,
+    direction: 0, // in radians [-Pi..Pi]
     antennas: []
 }
 
 // frequency in Hz
-const antenna = (frequency, x, y, shift = 0, amplitude = 100, color = 'yellow') => {
+const antenna = (frequency, x, y, amplitude = 100, color = 'yellow') => {
+    // distance to shift = distance of antenna from array origin * cos(angB-angA)
+    // angB - direction of beam
+    // angA - direction of antenna from array origin
+    const angB = antenna_array.direction
+    const angA = x === antenna_array.x ? PI/2 : Math.atan((y-antenna_array.y) / (x-antenna_array.x))
+    console.log((y - antenna_array.y), (antenna_array.x))
+    const phase_dist_pt = Math.hypot(x-antenna_array.x, y-antenna_array.y) * Math.cos(angB - angA) % WAVELENGTH_PT
+    const phase_shift = phase_dist_pt / WAVELENGTH_PT * 2 * PI
+    console.log({x ,y, angA, angB, phase_dist_pt, phase_rad: phase_shift})
     return {
         x: x, y: y,
         amplitude: amplitude,
         frequency: frequency,
         wavelength_m: C / frequency,
         wavelength_pt: C / frequency / P2M,
-        phase_shift: shift, // in radians [-Pi..Pi]
+        phase_shift: phase_shift, // in radians [-Pi..Pi]
         color: color
     }
 }
@@ -63,18 +70,17 @@ const antenna = (frequency, x, y, shift = 0, amplitude = 100, color = 'yellow') 
 for (let i = 0; i < NUM_ANTENNAS; i++) {
     const x = antenna_array.x
     const y = antenna_array.y + i * antenna_array.r
+    console.log({x,y})
     antenna_array.antennas.push(
         antenna(FREQUENCY,
             x,
             y,
-            phase_shift = 0, 
             amplitude = BRIGHTNESS
     ))
     antenna_array.antennas.push(
         antenna(FREQUENCY,
-            x + WAVELENGTH_PT * 0.25,
-            y,
-            phase_shift = PI/2, 
+            0.3 * y + 0.7 * x,
+            0.7 * y + 0.3 * x,
             amplitude = BRIGHTNESS
     ))
 }
