@@ -1,47 +1,51 @@
 const C = 299792458 // speed limit in m/s
-const P2M = 1 // how many meters per point
+const M2P = 1 // how many meters per point
 const P_SIZE = 2
-const ARRAY_SIZE = 2
+const ARRAY_SIZE = 4
 const FREQUENCY = 142800000
 const BRIGHTNESS = 1e7
 const WAVELENGTH = C / FREQUENCY
-const WAVELENGTH_PT = WAVELENGTH / P2M
+const WAVELENGTH_PT = WAVELENGTH / M2P
 const PI = Math.PI
 
 
 const TESTS_PER_WAVE = 10
 const TEST_RADIANS = new Array(TESTS_PER_WAVE).fill(0).map((v, ix) => ix / TESTS_PER_WAVE * 2 * Math.PI)
-const TARGET = { x: 500, y: 100, r: 20 }
+const TARGET = { x: 290, y: 150, r: 10 }
 
-const get_angle(x1, y1, x2, y2) => {
-    const dx = x2 - x1
-    const dy = y2 - y1
-    return Math.atan(dt/dx)
-}
 
 class Antenna {
-    constructor (frequency, x, y, target, waves_inc, amplitude = 100) {
+    constructor (frequency, x, y, target, amplitude = 100) {
         this.x = x
         this.y = y
         this.amplitude = amplitude
+        this.frequency = frequency
+        this.wavelength = C / this.frequency
+        this.target_distance = Math.hypot(target.x-x, target.y-y)
+        // this.target_direction = Math.asin((target.y-y)/this.target_distance)
+        this.phase_dist = this.target_distance % this.wavelength
+        this.phase_shift = this.phase_dist / this.wavelength * 2 * PI
 
-        const target_distance = Math.hypot(target.x-x, target.y-y)
-
-        const angB = antenna_array.direction
-        const dist_from_origin_pt = Math.hypot(x - antenna_array.x, y - antenna_array.y)
-        const angA = dist_from_origin_pt === 0 ? 0 : Math.asin((y-antenna_array.y) / dist_from_origin_pt)
-        console.log((y - antenna_array.y), (antenna_array.x))
-        const phase_dist_pt = dist_from_origin_pt * Math.cos(angB - angA) % WAVELENGTH_PT
-        const phase_shift = phase_dist_pt / WAVELENGTH_PT * 2 * PI
-        console.log({x ,y, angA, angB, phase_dist_pt, phase_rad: phase_shift})
-        // return {
-            frequency: frequency,
-            wavelength_m: C / frequency,
-            wavelength_pt: C / frequency / P2M,
-            phase_shift: phase_shift, // in radians [-Pi..Pi]
-        // }
+        console.log(this)
     }
 }
+
+class AntennaArray {
+    constructor (x, y) {
+        this.x = x
+        this.y = y
+        this.r = WAVELENGTH * 0.75,
+        this.antennas = []
+    }
+
+    add (frequency, x, y, target, amplitude) {
+        this.antennas.push(
+            new Antenna(frequency, x, y, target, amplitude)
+        )
+    }
+}
+
+const antenna_array = new AntennaArray(200,150)
 
 const movaverage = (key, value) => {
     const history = 10
@@ -64,50 +68,11 @@ updateCanvasDimensions()
 const context = canvas.getContext("2d")
 
 
-
-const antenna_array = {
-    x: 150,
-    y: 200,
-    r: WAVELENGTH_PT * 0.25,
-    direction: -0.10*PI,//-PI/2, // in radians [-Pi..Pi]
-    antennas: []
-}
-
-// frequency in Hz
-const antenna = (frequency, x, y, amplitude = 100, color = 'yellow') => {
-    // distance to shift = distance of antenna from array origin * cos(angB-angA)
-    // angB - direction of beam
-    // angA - direction of antenna from array origin
-    const angB = antenna_array.direction
-    const dist_from_origin_pt = Math.hypot(x - antenna_array.x, y - antenna_array.y)
-    const angA = dist_from_origin_pt === 0 ? 0 : Math.asin((y-antenna_array.y) / dist_from_origin_pt)
-    console.log((y - antenna_array.y), (antenna_array.x))
-    const phase_dist_pt = dist_from_origin_pt * Math.cos(angB - angA) % WAVELENGTH_PT
-    const phase_shift = phase_dist_pt / WAVELENGTH_PT * 2 * PI
-    console.log({x ,y, angA, angB, phase_dist_pt, phase_rad: phase_shift})
-    return {
-        x: x, y: y,
-        amplitude: amplitude,
-        frequency: frequency,
-        wavelength_m: C / frequency,
-        wavelength_pt: C / frequency / P2M,
-        phase_shift: phase_shift, // in radians [-Pi..Pi]
-        color: color
-    }
-}
-
-
 for (let i = 0; i < ARRAY_SIZE; i++) {
     for (let j = 0; j < ARRAY_SIZE; j++) {
         const x = antenna_array.x + i * antenna_array.r
         const y = antenna_array.y + j * antenna_array.r
-        console.log({x,y})
-        antenna_array.antennas.push(
-            antenna(FREQUENCY,
-                x,
-                y,
-                amplitude = BRIGHTNESS
-        ))
+        antenna_array.add(FREQUENCY, x, y, TARGET, BRIGHTNESS)
     }
 }
 console.log(antenna_array)
@@ -121,6 +86,7 @@ update()
 function update() {
 
     const draw = (x, y, intensity) => {
+        // console.log('draw', x, y, intensity)
         const brightness = Math.round(intensity/2000)
         max_brightness = Math.max(brightness, max_brightness)
         context.fillStyle = "hsl(120, 100%, " + brightness + "%)"
@@ -145,15 +111,15 @@ function update() {
         for (let cy = 0; cy < canvas.height; cy += P_SIZE) {
             // Calculate phase of wave for each antenna
             const phases = antenna_array.antennas.map(a => {
-                const phase_incr_pt = a.wavelength_pt * a.phase_shift / 2 / PI
-                const distance_pt = Math.hypot(a.x-cx, a.y-cy)
-                const phase_dist_pt = (phase_incr_pt + distance_pt) % WAVELENGTH_PT
-                const phase_rad = phase_dist_pt / WAVELENGTH_PT * 2 * PI
-                return {phase_rad, distance_pt, 'amplitude': a.amplitude}
+                const phase_incr = a.wavelength * a.phase_shift / 2 / PI
+                const distance = Math.hypot(a.x-cx, a.y-cy)
+                const phase_dist = (phase_incr + distance) % WAVELENGTH
+                const phase_rad = phase_dist / WAVELENGTH * 2 * PI
+                return {phase_rad, distance, 'amplitude': a.amplitude}
             })
             // Sum up the phases from all antennas
             const intensity = getIntensity(phases)
-            // console.log(intensity)
+            // console.log(intensity, phases)
             draw(cx, cy, intensity)
         }
     }
@@ -173,7 +139,7 @@ function getIntensity(phases) {
             return accumulator + 
                 value['amplitude'] *
                 Math.sin(value['phase_rad'] + TEST_RADIANS[i]) / 
-                value['distance_pt'] ** 1
+                value['distance'] ** 1
         }, 0))
     }
     // console.log(intensity)
