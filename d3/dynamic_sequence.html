@@ -1,0 +1,181 @@
+<html><head>
+  <style> body { margin: 0; } </style>
+
+  <script src="//unpkg.com/3d-force-graph"></script><style type="text/css">.graph-info-msg {
+  top: 50%;
+  width: 100%;
+  text-align: center;
+  color: lavender;
+  opacity: 0.7;
+  font-size: 22px;
+  position: absolute;
+  font-family: Sans-serif;
+}
+
+.scene-container .clickable {
+  cursor: pointer;
+}
+
+.scene-container .grabbable {
+  cursor: move;
+  cursor: grab;
+  cursor: -moz-grab;
+  cursor: -webkit-grab;
+}
+
+.scene-container .grabbable:active {
+  cursor: grabbing;
+  cursor: -moz-grabbing;
+  cursor: -webkit-grabbing;
+}</style><style type="text/css">.scene-nav-info {
+  bottom: 5px;
+  width: 100%;
+  text-align: center;
+  color: slategrey;
+  opacity: 0.7;
+  font-size: 10px;
+}
+
+.scene-tooltip {
+  top: 0;
+  color: lavender;
+  font-size: 15px;
+}
+
+.scene-nav-info, .scene-tooltip {
+  position: absolute;
+  font-family: sans-serif;
+  pointer-events: none;
+}
+
+.scene-container canvas:focus {
+  outline: none;
+}</style>
+  <!--<script src="../../dist/3d-force-graph.js"></script>-->
+<script type="text/javascript" data-name="TokenSigning" data-by="Web-eID extension">(function pageScript() {
+        let hasDeprecationWarningDisplayed = false;
+        const eidPromises = {};
+        window.addEventListener("message", function (event) {
+            if (event.source !== window)
+                return;
+            if (event.data.src && (event.data.src === "background.js")) {
+                console.log("Page received: ");
+                console.log(event.data);
+                if (event.data.nonce) {
+                    const p = eidPromises[event.data.nonce];
+                    if (event.data.result === "ok") {
+                        if (event.data.signature !== undefined) {
+                            p.resolve({ hex: event.data.signature });
+                        }
+                        else if (event.data.version !== undefined) {
+                            p.resolve(event.data.extension + "/" + event.data.version);
+                        }
+                        else if (event.data.cert !== undefined) {
+                            p.resolve({ hex: event.data.cert });
+                        }
+                        else {
+                            console.log("No idea how to handle message");
+                            console.log(event.data);
+                        }
+                    }
+                    else {
+                        p.reject(new Error(event.data.result));
+                    }
+                    delete eidPromises[event.data.nonce];
+                }
+                else {
+                    console.log("No nonce in event msg");
+                }
+            }
+        }, false);
+        function nonce() {
+            let val = "";
+            const hex = "abcdefghijklmnopqrstuvwxyz0123456789";
+            for (let i = 0; i < 16; i++)
+                val += hex.charAt(Math.floor(Math.random() * hex.length));
+            return val;
+        }
+        function messagePromise(msg) {
+            if (!hasDeprecationWarningDisplayed) {
+                console.warn("TokenSigning API is deprecated. Please consider switching to the new Web-eID library.");
+                hasDeprecationWarningDisplayed = true;
+            }
+            return new Promise(function (resolve, reject) {
+                window.postMessage(msg, "*");
+                eidPromises[msg.nonce] = { resolve, reject };
+            });
+        }
+        window.TokenSigning = class TokenSigning {
+            getCertificate(options) {
+                const msg = {
+                    src: "page.js",
+                    nonce: nonce(),
+                    type: "CERT",
+                    lang: options.lang,
+                    filter: options.filter,
+                };
+                console.log("getCertificate()");
+                return messagePromise(msg);
+            }
+            sign(cert, hash, options) {
+                const msg = {
+                    src: "page.js",
+                    nonce: nonce(),
+                    type: "SIGN",
+                    cert: cert.hex,
+                    hash: hash.hex,
+                    hashtype: hash.type,
+                    lang: options.lang,
+                    info: options.info,
+                };
+                console.log("sign()");
+                return messagePromise(msg);
+            }
+            getVersion() {
+                const msg = {
+                    src: "page.js",
+                    nonce: nonce(),
+                    type: "VERSION",
+                };
+                console.log("getVersion()");
+                return messagePromise(msg);
+            }
+        };
+    })();</script></head>
+
+<body>
+  <div id="3d-graph"><div style="position: relative;"><div><div class="scene-container" style="position: relative; width: 580px; height: 971px;"><div class="scene-nav-info">Left-click: rotate, Mouse-wheel/middle-click: zoom, Right-click: pan</div><div class="scene-tooltip" style="top: 195px; left: 544px; transform: translate(-93.7931%, 21px);"></div><canvas data-engine="three.js r144" width="580" height="971" style="display: block; touch-action: none; width: 580px; height: 971px;"></canvas></div></div><div class="graph-info-msg"></div></div></div>
+
+  <script>
+    const initData = {
+      nodes: [ {id: 0 } ],
+      links: []
+    };
+
+    const elem = document.getElementById("3d-graph");
+
+    const Graph = ForceGraph3D()(elem)
+        .enableNodeDrag(false)
+        .onNodeClick(removeNode)
+        .graphData(initData);
+
+    setInterval(() => {
+      const { nodes, links } = Graph.graphData();
+      const id = nodes.length;
+      Graph.graphData({
+        nodes: [...nodes, { id }],
+        links: [...links, { source: id, target: Math.round(Math.random() * (id-1)) }]
+      });
+    }, 1000);
+
+    //
+
+    function removeNode(node) {
+      let { nodes, links } = Graph.graphData();
+      links = links.filter(l => l.source !== node && l.target !== node); // Remove links attached to node
+      nodes.splice(node.id, 1); // Remove node
+      nodes.forEach((n, idx) => { n.id = idx; }); // Reset node ids to array index
+      Graph.graphData({ nodes, links });
+    }
+  </script>
+</body></html>

@@ -1,6 +1,6 @@
 const C = 299792458 // speed limit in m/s
 const M2P = 1 // how many meters per point
-const P_SIZE = 2
+const P_SIZE = 1
 const ARRAY_SIZE = 4
 const FREQUENCY = 142800000
 const BRIGHTNESS = 1e7
